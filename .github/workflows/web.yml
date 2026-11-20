@@ -1,0 +1,58 @@
+name: Build and publish web app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create web platform files
+        run: flutter create --platforms=web --org ly.incar --project-name in_car .
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Build web
+        run: >
+          flutter build web --release
+          --base-href "/${{ github.event.repository.name }}/"
+          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          --dart-define=SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}
+          --dart-define=FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}
+          --dart-define=FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+          --dart-define=FIREBASE_SENDER_ID=${{ secrets.FIREBASE_SENDER_ID }}
+          --dart-define=FIREBASE_WEB_APP_ID=${{ secrets.FIREBASE_WEB_APP_ID }}
+          --dart-define=FIREBASE_VAPID_KEY=${{ secrets.FIREBASE_VAPID_KEY }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
