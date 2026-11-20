@@ -41,7 +41,7 @@ class InCarApp extends StatelessWidget {
   }
 }
 
-/// يقرر أي شاشة تظهر: الدخول، إكمال الملف، الراكب، أو السائق.
+/// يقرر أي شاشة تظهر: الدخول، إكمال الملف، الراكب، أو السواق.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 

@@ -26,11 +26,21 @@ const vehicleTypes = {
   'large_truck': 'شاحنة كبيرة',
 };
 
+const paymentMethods = {
+  'cash': 'كاش',
+  'bank_transfer': 'تحويل مصرفي',
+  'sadad': 'سداد',
+  'mobicash': 'موبي كاش',
+  'other': 'طريقة ثانية',
+};
+
+String paymentLabel(String k) => paymentMethods[k] ?? k;
+
 const parcelSizes = {'small': 'صغير (ظرف أو كيس)', 'medium': 'متوسط (كرتونة)', 'large': 'كبير'};
 
 /// أعمدة الملف الشخصي المسموح بقراءتها (رقم الهاتف مخفي ويوصل عبر Api.partyPhone)
 const profileColumns =
-    'id,full_name,role,car_model,car_color,plate,rating,rating_count,services,vehicle_type,driver_status,driver_note';
+    'id,full_name,role,car_model,car_color,plate,rating,rating_count,services,vehicle_type,driver_status,driver_note,payment_methods';
 
 class Profile {
   final String id;
@@ -46,6 +56,7 @@ class Profile {
   final String vehicleType;
   final String driverStatus; // pending | approved | rejected
   final String? driverNote;
+  final List<String> paymentMethods;
 
   Profile({
     required this.id,
@@ -61,6 +72,7 @@ class Profile {
     this.vehicleType = 'car',
     this.driverStatus = 'pending',
     this.driverNote,
+    this.paymentMethods = const ['cash'],
   });
 
   bool get isDriver => role == 'driver';
@@ -83,6 +95,7 @@ class Profile {
         vehicleType: m['vehicle_type'] ?? 'car',
         driverStatus: m['driver_status'] ?? 'pending',
         driverNote: m['driver_note'],
+        paymentMethods: ((m['payment_methods'] as List?) ?? const ['cash']).map((e) => e.toString()).toList(),
       );
 }
 
@@ -112,6 +125,8 @@ class Ride {
   final DateTime? scheduledAt;
   final int? seats;
   final double? commission;
+  final String paymentMethod;
+  final bool paid;
 
   Ride({
     required this.id,
@@ -134,6 +149,8 @@ class Ride {
     this.scheduledAt,
     this.seats,
     this.commission,
+    this.paymentMethod = 'cash',
+    this.paid = false,
   });
 
   bool get isActive =>
@@ -186,6 +203,8 @@ class Ride {
         scheduledAt: _t(m['scheduled_at']),
         seats: m['seats'],
         commission: m['commission'] == null ? null : _d(m['commission']),
+        paymentMethod: m['payment_method'] ?? 'cash',
+        paid: m['paid'] == true,
       );
 }
 

@@ -59,13 +59,19 @@ class _InAppNotifierState extends State<InAppNotifier> {
 }
 
 /// جرس الإشعارات مع عدد غير المقروءة
-class NotificationBell extends StatelessWidget {
+class NotificationBell extends StatefulWidget {
   const NotificationBell({super.key});
+  @override
+  State<NotificationBell> createState() => _NotificationBellState();
+}
+
+class _NotificationBellState extends State<NotificationBell> {
+  final Stream<List<AppNotification>> _stream = Api.watchMyNotifications();
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<AppNotification>>(
-      stream: Api.watchMyNotifications(),
+      stream: _stream,
       builder: (context, snap) {
         final unread = (snap.data ?? []).where((n) => !n.read).length;
         return IconButton.filled(

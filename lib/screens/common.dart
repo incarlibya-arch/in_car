@@ -35,6 +35,88 @@ Future<DateTime?> pickDateTime(BuildContext context, {DateTime? initial, Duratio
   return r;
 }
 
+/// اختيار طريقة الدفع (الراكب)
+class PaymentPicker extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+  const PaymentPicker({super.key, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('طريقة الدفع', style: TextStyle(fontWeight: FontWeight.w600)),
+      const SizedBox(height: 4),
+      Wrap(spacing: 6, runSpacing: 4, children: [
+        for (final k in ['cash', 'bank_transfer', 'sadad', 'mobicash'])
+          ChoiceChip(
+            label: Text(paymentLabel(k)),
+            selected: value == k,
+            onSelected: (_) => onChanged(k),
+          ),
+      ]),
+    ]);
+  }
+}
+
+/// بيانات الدفع حق السواق، تظهر للراكب بعد ما تبدا الرحلة
+class PaymentDetailsCard extends StatelessWidget {
+  final Ride ride;
+  const PaymentDetailsCard({super.key, required this.ride});
+
+  @override
+  Widget build(BuildContext context) {
+    if (ride.paymentMethod == 'cash') return const SizedBox.shrink();
+    if (ride.paid) {
+      return const Padding(
+        padding: EdgeInsets.only(bottom: 8),
+        child: Text('السواق أكد استلام المبلغ ✓', style: TextStyle(color: AppColors.ok, fontWeight: FontWeight.w700)),
+      );
+    }
+    if (ride.status != RideStatus.started && ride.status != RideStatus.completed) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text('بيانات ${paymentLabel(ride.paymentMethod)} حق السواق تظهرلك أول ما تبدا الرحلة',
+            style: const TextStyle(fontSize: 13, color: AppColors.mute)),
+      );
+    }
+    return FutureBuilder<String?>(
+      future: Api.ridePaymentDetails(ride.id),
+      builder: (context, snap) {
+        final d = snap.data;
+        if (d == null) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text('اتفق مع السواق على تفاصيل الدفع عن طريق ${paymentLabel(ride.paymentMethod)}',
+                style: const TextStyle(fontSize: 13)),
+          );
+        }
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: AppColors.accentSoft, borderRadius: BorderRadius.circular(14)),
+          child: Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('ادفع عن طريق ${paymentLabel(ride.paymentMethod)}',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                SelectableText(d, style: const TextStyle(fontSize: 16)),
+              ]),
+            ),
+            IconButton(
+              tooltip: 'انسخ',
+              icon: const Icon(Icons.copy),
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: d));
+                if (context.mounted) showMsg(context, 'تم النسخ');
+              },
+            ),
+          ]),
+        );
+      },
+    );
+  }
+}
+
 /// شارة نوع الخدمة
 class ServiceBadge extends StatelessWidget {
   final Service service;
@@ -89,7 +171,7 @@ class TripActions extends StatelessWidget {
     final text = [
       'أنا في رحلة in car:',
       '${ride.pickupLabel} ← ${ride.dropoffLabel}',
-      if (driver != null) 'السائق: ${driver!.fullName} · ${driver!.carLabel}${driver!.plate != null ? ' · لوحة ${driver!.plate}' : ''}',
+      if (driver != null) 'السواق: ${driver!.fullName} · ${driver!.carLabel}${driver!.plate != null ? ' · لوحة ${driver!.plate}' : ''}',
       if (here != null) 'موقعي توا: https://maps.google.com/?q=${here.latitude},${here.longitude}',
     ].join('\n');
     await Clipboard.setData(ClipboardData(text: text));

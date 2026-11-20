@@ -37,6 +37,7 @@ class _PassengerHomeState extends State<PassengerHome> {
   String _vehicle = 'pickup';
   int _helpers = 0;
   DateTime? _scheduledAt;
+  String _payment = 'cash';
   Place? _from;
   Place? _to;
   RouteInfo? _route;
@@ -159,6 +160,7 @@ class _PassengerHomeState extends State<PassengerHome> {
         details: _details,
         scheduledAt: _scheduledAt,
         comment: _comment.text.trim().isEmpty ? null : _comment.text.trim(),
+        paymentMethod: _payment,
       );
       if (mounted) _openRide(id, true);
     } catch (e) {
@@ -303,7 +305,7 @@ class _PassengerHomeState extends State<PassengerHome> {
                 ),
                 const SizedBox(height: 10),
                 StopsBox(
-                  from: _from?.label ?? 'جاري تحديد موقعك…',
+                  from: _from?.label ?? 'نحددو في موقعك…',
                   to: _to?.label ?? 'وين ماشي؟ ابحث أو اضغط على الخريطة',
                   onTapFrom: () => _search(from: true),
                   onTapTo: () => _search(from: false),
@@ -356,13 +358,13 @@ class _PassengerHomeState extends State<PassengerHome> {
                   TextField(
                     controller: _comment,
                     decoration: const InputDecoration(
-                      hintText: 'ملاحظة للسائق (اختياري)',
+                      hintText: 'ملاحظة للسواق (اختياري)',
                       prefixIcon: Icon(Icons.chat_bubble_outline),
                       isDense: true,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Row(children: [Icon(Icons.payments_outlined, size: 20), SizedBox(width: 8), Text('الدفع نقداً')]),
+                  PaymentPicker(value: _payment, onChanged: (v) => setState(() => _payment = v)),
                   const SizedBox(height: 10),
                   FilledButton(
                     onPressed: _busy ? null : _request,
@@ -429,14 +431,14 @@ class _PlaceSearchSheetState extends State<PlaceSearchSheet> {
             child: TextField(
               autofocus: true,
               onChanged: _onChanged,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'ابحث عن مكان أو شارع'),
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'دوّر على مكان أو شارع'),
             ),
           ),
           if (_loading) const LinearProgressIndicator(),
           Expanded(
             child: _results.isEmpty && !_loading
                 ? const Center(
-                    child: Text('أو سكّر هذي الصفحة واضغط على الخريطة مباشرة', style: TextStyle(color: AppColors.mute)))
+                    child: Text('أو قفّل هذي الصفحة واضغط على الخريطة طول', style: TextStyle(color: AppColors.mute)))
                 : ListView.separated(
                     itemCount: _results.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
@@ -475,7 +477,7 @@ class _OffersScreenState extends State<OffersScreen> {
       if (r.isActive) {
         _left = true;
         if (r.isUpcoming) {
-          showMsg(context, 'تم الحجز! السائق بيجيك في الموعد، وبيوصلك تذكير قبلها');
+          showMsg(context, 'تم الحجز! السواق بيجيك في الموعد، وبيوصلك تذكير قبلها');
           Navigator.pop(context);
         } else {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => PassengerTripScreen(rideId: r.id)));
@@ -535,8 +537,8 @@ class _OffersScreenState extends State<OffersScreen> {
                     return Center(
                       child: Text(
                         ride.scheduledAt != null
-                            ? 'طلب الحجز وصل للسواقين، العروض بتظهر هنا.\nتقدر تسكّر الصفحة وترجعلها من «رحلاتي المحجوزة».'
-                            : 'نبحثولك على سواقين قريبين…',
+                            ? 'طلب الحجز وصل للسواقين، العروض بتظهر هنا.\nتقدر تقفّل الصفحة وترجعلها من «رحلاتي المحجوزة».'
+                            : 'ندوّرولك على سواقين قريبين…',
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: AppColors.mute),
                       ),
@@ -544,17 +546,24 @@ class _OffersScreenState extends State<OffersScreen> {
                   }
                   return FutureBuilder(
                     future: Api.loadProfiles(offers.map((o) => o.driverId)),
-                    builder: (context, _) => ListView.separated(
+                    builder: (context, _) {
+                      bool ok(Offer o) =>
+                          ride.paymentMethod == 'cash' ||
+                          (Api.cached(o.driverId)?.paymentMethods.contains(ride.paymentMethod) ?? false);
+                      final sorted = [...offers.where(ok), ...offers.where((o) => !ok(o))];
+                      return ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: offers.length,
+                      itemCount: sorted.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (_, i) => _OfferCard(
-                        offer: offers[i],
-                        driver: Api.cached(offers[i].driverId),
-                        onAccept: () => _run(() => Api.acceptOffer(offers[i].id)),
-                        onDecline: () => _run(() => Api.declineOffer(offers[i].id)),
+                        offer: sorted[i],
+                        rideMethod: ride.paymentMethod,
+                        driver: Api.cached(sorted[i].driverId),
+                        onAccept: () => _run(() => Api.acceptOffer(sorted[i].id)),
+                        onDecline: () => _run(() => Api.declineOffer(sorted[i].id)),
                       ),
-                    ),
+                    );
+                    },
                   );
                 },
               ),
@@ -587,9 +596,16 @@ class _OffersScreenState extends State<OffersScreen> {
 class _OfferCard extends StatelessWidget {
   final Offer offer;
   final Profile? driver;
+  final String rideMethod;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
-  const _OfferCard({required this.offer, this.driver, required this.onAccept, required this.onDecline});
+  const _OfferCard({
+    required this.offer,
+    this.driver,
+    required this.rideMethod,
+    required this.onAccept,
+    required this.onDecline,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -608,7 +624,7 @@ class _OfferCard extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Flexible(
-                    child: Text(d?.fullName ?? 'سائق', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                    child: Text(d?.fullName ?? 'سواق', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                   ),
                   if (d?.isApproved == true)
                     const Padding(
@@ -627,6 +643,23 @@ class _OfferCard extends StatelessWidget {
             ),
             Money(offer.price),
           ]),
+          const SizedBox(height: 8),
+          Builder(builder: (context) {
+            final methods = d?.paymentMethods ?? const ['cash'];
+            final ok = rideMethod == 'cash' || methods.contains(rideMethod);
+            return Row(children: [
+              Icon(ok ? Icons.check_circle : Icons.info_outline, size: 16, color: ok ? AppColors.ok : AppColors.danger),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  ok
+                      ? 'يقبل: ${methods.map(paymentLabel).join(' · ')}'
+                      : 'ما يقبلش ${paymentLabel(rideMethod)}، يقبل: ${methods.map(paymentLabel).join(' · ')}',
+                  style: TextStyle(fontSize: 13, color: ok ? AppColors.ink : AppColors.danger),
+                ),
+              ),
+            ]);
+          }),
           const SizedBox(height: 12),
           Row(children: [
             Expanded(
@@ -645,7 +678,7 @@ class _OfferCard extends StatelessWidget {
   }
 }
 
-/// الرحلة بعد قبول السائق
+/// الرحلة بعد قبول السواق
 class PassengerTripScreen extends StatefulWidget {
   final String rideId;
   const PassengerTripScreen({super.key, required this.rideId});
@@ -662,9 +695,9 @@ class _PassengerTripScreenState extends State<PassengerTripScreen> {
   String _title(Ride r) {
     if (r.status == RideStatus.accepted && r.isUpcoming) return 'رحلة محجوزة';
     return const {
-          RideStatus.accepted: 'السائق في الطريق إليك',
-          RideStatus.arrived: 'السائق وصل، اطلعله',
-          RideStatus.started: 'في الطريق لوجهتك',
+          RideStatus.accepted: 'السواق جاي في الثنية',
+          RideStatus.arrived: 'السواق وصل، اطلعله',
+          RideStatus.started: 'ماشين لوجهتك',
           RideStatus.completed: 'وصلت بالسلامة',
           RideStatus.cancelled: 'انلغت الرحلة',
         }[r.status] ??
@@ -754,13 +787,14 @@ class _PassengerTripScreenState extends State<PassengerTripScreen> {
                       ),
                     const SizedBox(height: 12),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      const Text('السعر المتفق عليه · نقداً', style: TextStyle(color: AppColors.mute)),
+                      Text('السعر المتفق عليه · ${paymentLabel(r.paymentMethod)}', style: const TextStyle(color: AppColors.mute)),
                       Money(r.finalPrice ?? r.offeredPrice),
                     ]),
                     const SizedBox(height: 12),
+                    PaymentDetailsCard(ride: r),
                     if (r.isActive && d != null) TripActions(ride: r, otherUserId: d.id, otherName: d.fullName, driver: d),
                     if (r.status == RideStatus.completed) ...[
-                      Text('قيّم ${d?.fullName ?? 'السائق'}',
+                      Text('قيّم ${d?.fullName ?? 'السواق'}',
                           textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700)),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -774,7 +808,7 @@ class _PassengerTripScreenState extends State<PassengerTripScreen> {
                           ),
                         ),
                       ),
-                      FilledButton(onPressed: () => _finish(r), child: Text(_stars > 0 ? 'إرسال التقييم' : 'تم')),
+                      FilledButton(onPressed: () => _finish(r), child: Text(_stars > 0 ? 'ابعت التقييم' : 'تم')),
                     ],
                     if (r.status == RideStatus.cancelled)
                       FilledButton(onPressed: () => _finish(r), child: const Text('طلب جديد')),
@@ -790,15 +824,21 @@ class _PassengerTripScreenState extends State<PassengerTripScreen> {
 }
 
 /// الرحلات المحجوزة القادمة للراكب
-class UpcomingRidesScreen extends StatelessWidget {
+class UpcomingRidesScreen extends StatefulWidget {
   const UpcomingRidesScreen({super.key});
+  @override
+  State<UpcomingRidesScreen> createState() => _UpcomingRidesScreenState();
+}
+
+class _UpcomingRidesScreenState extends State<UpcomingRidesScreen> {
+  final Stream<List<Ride>> _rides = Api.watchMyUpcomingRides();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('رحلاتي المحجوزة')),
       body: StreamBuilder<List<Ride>>(
-        stream: Api.watchMyUpcomingRides(),
+        stream: _rides,
         builder: (context, snap) {
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
           final list = snap.data!;
@@ -821,7 +861,7 @@ class UpcomingRidesScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     ServiceBadge(r.service, scheduledAt: r.scheduledAt),
                     const SizedBox(height: 4),
-                    Text(r.status == RideStatus.open ? 'ينتظر عروض السواقين' : 'تم الحجز مع سائق'),
+                    Text(r.status == RideStatus.open ? 'ينتظر عروض السواقين' : 'تم الحجز مع سواق'),
                   ]),
                   trailing: Money(r.finalPrice ?? r.offeredPrice, size: 18),
                   onTap: () => Navigator.push(

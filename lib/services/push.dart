@@ -9,6 +9,7 @@ import 'api.dart';
 /// لو ما جهزتش Firebase في config.dart، الدالة ما تعمل شي، والإشعارات الداخلية تبقى شغالة.
 class Push {
   static bool _ready = false;
+  static bool _started = false;
 
   static FirebaseOptions? get _options {
     if (!AppConfig.pushEnabled) return null;
@@ -29,7 +30,8 @@ class Push {
   /// يطلب الإذن ويحفظ رمز الجهاز في Supabase. ينادى بعد تسجيل الدخول.
   static Future<void> register() async {
     final opts = _options;
-    if (opts == null || Api.uid == null) return;
+    if (opts == null || Api.uid == null || _started) return;
+    _started = true;
     try {
       if (!_ready) {
         await Firebase.initializeApp(options: opts);

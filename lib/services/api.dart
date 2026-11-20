@@ -47,6 +47,7 @@ class Api {
     String? plate,
     List<Service> services = const [Service.city],
     String vehicleType = 'car',
+    List<String> paymentMethods = const ['cash'],
   }) async {
     final row = {
       'full_name': fullName,
@@ -57,6 +58,7 @@ class Api {
       'plate': plate,
       'services': services.map((e) => e.name).toList(),
       'vehicle_type': vehicleType,
+      'payment_methods': {'cash', ...paymentMethods}.toList(),
     };
     final exists = await _db.from('profiles').select('id').eq('id', uid!).maybeSingle();
     if (exists == null) {
@@ -108,6 +110,7 @@ class Api {
     DateTime? scheduledAt,
     int? seats,
     String? comment,
+    String paymentMethod = 'cash',
   }) async {
     final row = await _db
         .from('rides')
@@ -127,6 +130,7 @@ class Api {
           'scheduled_at': scheduledAt?.toUtc().toIso8601String(),
           'seats': seats,
           'comment': comment,
+          'payment_method': paymentMethod,
         })
         .select('id')
         .single();
@@ -190,7 +194,7 @@ class Api {
           .toList()
         ..sort((a, b) => a.scheduledAt!.compareTo(b.scheduledAt!)));
 
-  // ---------- السائق ----------
+  // ---------- السواق ----------
 
   /// الطلبات المفتوحة: الفورية من آخر 30 دقيقة، والمحجوزة لين موعدها
   static Stream<List<Ride>> watchOpenRides() => _db
@@ -244,6 +248,35 @@ class Api {
       .eq('driver_id', driverId)
       .map((rows) => rows.isEmpty ? null : rows.first);
 
+  // ---------- طرق الدفع ----------
+
+  /// بيانات الدفع حق السواق الحالي (رقم الحساب لكل طريقة)
+  static Future<Map<String, String>> myPaymentDetails() async {
+    final rows = await _db.from('driver_payment_details').select().eq('driver_id', uid!);
+    return {for (final r in rows) r['method'] as String: r['details'] as String};
+  }
+
+  static Future<void> savePaymentDetails(Map<String, String> details) async {
+    await _db.from('driver_payment_details').delete().eq('driver_id', uid!);
+    final rows = [
+      for (final e in details.entries)
+        if (e.key != 'cash' && e.value.trim().isNotEmpty) {'driver_id': uid, 'method': e.key, 'details': e.value.trim()},
+    ];
+    if (rows.isNotEmpty) await _db.from('driver_payment_details').insert(rows);
+  }
+
+  /// بيانات الدفع حق السواق للرحلة هذي (تظهر بعد ما تبدا الرحلة)
+  static Future<String?> ridePaymentDetails(String rideId) async {
+    try {
+      final r = await _db.rpc('ride_payment_details', params: {'p_ride': rideId});
+      return r is String && r.isNotEmpty ? r : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> confirmPayment(String rideId) => _db.rpc('confirm_payment', params: {'p_ride': rideId});
+
   // ---------- المحادثة ----------
 
   static Stream<List<ChatMessage>> watchMessages(String rideId) => _db
@@ -276,7 +309,7 @@ class Api {
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
 
-  // ---------- وثائق السائق ----------
+  // ---------- وثائق السواق ----------
 
   static Future<List<DriverDoc>> myDocuments() async {
     final rows = await _db.from('driver_documents').select().eq('driver_id', uid!);
@@ -391,7 +424,7 @@ class Api {
         if (supportPhone != null) 'support_phone': supportPhone,
       }).eq('id', 1);
 
-  /// يلقى سائق برقم هاتفه (لتعديل رصيده من الإدارة)
+  /// يلقى سواق برقم هاتفه (لتعديل رصيده من الإدارة)
   static Future<Profile?> findDriverByPhone(String phone) async {
     final rows = await _db.rpc('admin_find_driver', params: {'p_phone': normalizePhone(phone)}) as List;
     return rows.isEmpty ? null : Profile.fromMap(Map<String, dynamic>.from(rows.first));
@@ -432,12 +465,12 @@ class Api {
 
 /// رسالة خطأ مفهومة للمستخدم
 String friendlyError(Object e) {
-  if (e is AuthException) return 'تعذر التحقق: ${e.message}';
-  if (e is StorageException) return 'تعذر رفع الملف: ${e.message}';
+  if (e is AuthException) return 'ما قدرناش نتأكدو: ${e.message}';
+  if (e is StorageException) return 'ما قدرناش نرفعو الملف: ${e.message}';
   if (e is PostgrestException) {
-    // 42501 = رفض صلاحيات RLS: عند السائق سببه حساب غير موثّق أو رصيد غير كافي
+    // 42501 = رفض صلاحيات RLS: عند السواق سببه حساب غير موثّق أو رصيد غير كافي
     if (e.code == '42501') return 'ما تقدرش تقدّم عروض توا. تأكد إن حسابك موثّق ورصيد محفظتك كافي.';
     return e.message;
   }
-  return 'صار خطأ، تأكد من الاتصال بالإنترنت وحاول مرة ثانية.';
+  return 'صار خطأ، شوف النت وعاود جرّب.';
 }

@@ -26,6 +26,7 @@ class _IntercityScreenState extends State<IntercityScreen> {
   final _comment = TextEditingController();
   DateTime _when = DateTime.now().add(const Duration(hours: 2));
   int _seats = 1;
+  String _payment = 'cash';
   bool _fullCar = false;
   RouteInfo? _route;
   int? _price;
@@ -71,6 +72,7 @@ class _IntercityScreenState extends State<IntercityScreen> {
         scheduledAt: _when,
         seats: _fullCar ? 4 : _seats,
         comment: _comment.text.trim().isEmpty ? null : _comment.text.trim(),
+        paymentMethod: _payment,
       );
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => OffersScreen(rideId: id)));
@@ -134,7 +136,7 @@ class _IntercityScreenState extends State<IntercityScreen> {
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('أبي السيارة كاملة'),
+          title: const Text('نبي السيارة كاملة'),
           subtitle: const Text('بدون ركاب آخرين'),
           value: _fullCar,
           onChanged: (v) => setState(() {
@@ -187,7 +189,9 @@ class _IntercityScreenState extends State<IntercityScreen> {
             OutlinedButton(onPressed: () => setState(() => _price = _price! + 5), child: const Text('+5')),
           ]),
           const SizedBox(height: 12),
-          TextField(controller: _comment, decoration: const InputDecoration(labelText: 'ملاحظة للسائق (شنط، أطفال…)')),
+          TextField(controller: _comment, decoration: const InputDecoration(labelText: 'ملاحظة للسواق (شنط، أطفال…)')),
+          const SizedBox(height: 12),
+          PaymentPicker(value: _payment, onChanged: (v) => setState(() => _payment = v)),
           const SizedBox(height: 16),
           FilledButton(onPressed: _busy ? null : _request, child: Text('اطلب بـ $_price د.ل')),
         ],

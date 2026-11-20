@@ -6,7 +6,7 @@ import '../services/api.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
-/// رفع وثائق السائق للتوثيق
+/// رفع وثائق السواق للتوثيق
 class DriverDocsScreen extends StatefulWidget {
   final Profile me;
   const DriverDocsScreen({super.key, required this.me});
@@ -25,12 +25,12 @@ class _DriverDocsScreenState extends State<DriverDocsScreen> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(
             leading: const Icon(Icons.photo_camera_outlined),
-            title: const Text('تصوير بالكاميرا'),
+            title: const Text('صوّر بالكاميرا'),
             onTap: () => Navigator.pop(ctx, ImageSource.camera),
           ),
           ListTile(
             leading: const Icon(Icons.photo_library_outlined),
-            title: const Text('اختيار من الصور'),
+            title: const Text('من الصور'),
             onTap: () => Navigator.pop(ctx, ImageSource.gallery),
           ),
         ]),
@@ -81,7 +81,7 @@ class _DriverDocsScreenState extends State<DriverDocsScreen> {
                 status == 'approved'
                     ? 'حسابك موثّق ✓'
                     : status == 'rejected'
-                        ? 'ما تمش قبول الوثائق${widget.me.driverNote != null ? ': ${widget.me.driverNote}' : ''}. ارفعها من جديد.'
+                        ? 'الوثائق ما انقبلتش${widget.me.driverNote != null ? ': ${widget.me.driverNote}' : ''}. ارفعها من جديد.'
                         : allUploaded
                             ? 'وثائقك وصلت، والإدارة تراجعها. بيوصلك إشعار أول ما يتوثق حسابك.'
                             : 'ارفع الوثائق الأربعة باش تقدر تبدأ تستقبل الطلبات.',

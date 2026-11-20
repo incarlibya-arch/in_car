@@ -15,7 +15,7 @@ import 'docs_screen.dart';
 import 'notifications_screen.dart';
 import 'wallet_screens.dart';
 
-/// الشاشة الرئيسية للسائق: الطلبات القريبة وتقديم العروض.
+/// الشاشة الرئيسية للسواق: الطلبات القريبة وتقديم العروض.
 class DriverHome extends StatefulWidget {
   final Profile me;
   const DriverHome({super.key, required this.me});
@@ -146,7 +146,7 @@ class _DriverHomeState extends State<DriverHome> {
     return Scaffold(
       appBar: AppBar(
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('مرحبا، ${widget.me.fullName}', style: const TextStyle(fontSize: 13, color: AppColors.mute)),
+          Text('أهلاً، ${widget.me.fullName}', style: const TextStyle(fontSize: 13, color: AppColors.mute)),
           const Text('الطلبات', style: TextStyle(fontWeight: FontWeight.w700)),
         ]),
         actions: [
@@ -238,7 +238,7 @@ class _DriverHomeState extends State<DriverHome> {
           return MaterialBanner(
             backgroundColor: AppColors.accentSoft,
             content: Text(widget.me.driverStatus == 'rejected'
-                ? 'ما تمش قبول وثائقك. ارفعها من جديد باش تقدر تقدّم عروض.'
+                ? 'وثائقك ما انقبلتش. ارفعها من جديد باش تقدر تقدّم عروض.'
                 : 'حسابك قيد المراجعة. ارفع وثائقك لو ما رفعتهاش، وبيوصلك إشعار أول ما يتوثق.'),
             actions: [
               TextButton(
@@ -374,6 +374,8 @@ class _RideRequestCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text('ملاحظة: ${ride.comment}', style: const TextStyle(fontSize: 13)),
           ],
+          const SizedBox(height: 6),
+          Text('الدفع: ${paymentLabel(ride.paymentMethod)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           if (pending)
             Text('عرضت ${myOffer!.price.toStringAsFixed(0)} د.ل · بانتظار رد الراكب',
@@ -405,7 +407,7 @@ class _RideRequestCard extends StatelessWidget {
   }
 }
 
-/// رحلة السائق بعد ما الراكب يقبل عرضه
+/// رحلة السواق بعد ما الراكب يقبل عرضه
 class DriverTripScreen extends StatefulWidget {
   final String rideId;
   const DriverTripScreen({super.key, required this.rideId});
@@ -435,6 +437,26 @@ class _DriverTripScreenState extends State<DriverTripScreen> {
     setState(() => _busy = true);
     try {
       await Api.advanceRide(r.id, to);
+      if (to == RideStatus.completed && r.paymentMethod != 'cash' && mounted) {
+        final got = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('استلمت المبلغ؟'),
+            content: Text(
+                '${(r.finalPrice ?? r.offeredPrice).toStringAsFixed(0)} د.ل عن طريق ${paymentLabel(r.paymentMethod)}'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('بعدين')),
+              FilledButton(
+                style: FilledButton.styleFrom(minimumSize: const Size(110, 44)),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('استلمت'),
+              ),
+            ],
+          ),
+        );
+        if (got == true) await Api.confirmPayment(r.id);
+      }
       if (to == RideStatus.completed || to == RideStatus.cancelled) {
         if (mounted) Navigator.pop(context);
       }
@@ -462,7 +484,7 @@ class _DriverTripScreenState extends State<DriverTripScreen> {
           RideStatus.accepted when upcoming => ('رحلة محجوزة · ${fmtDate(r.scheduledAt!)}', 'وصلت للراكب', RideStatus.arrived, r.pickup),
           RideStatus.accepted => ('روح للراكب', 'وصلت للراكب', RideStatus.arrived, r.pickup),
           RideStatus.arrived => ('أنت عند الراكب', 'بدء الرحلة', RideStatus.started, r.pickup),
-          RideStatus.started => ('الرحلة جارية', 'إنهاء الرحلة', RideStatus.completed, r.dropoff),
+          RideStatus.started => ('الرحلة ماشية', 'إنهاء الرحلة', RideStatus.completed, r.dropoff),
           _ => ('انتهت الرحلة', 'رجوع', RideStatus.completed, r.dropoff),
         };
         return Scaffold(
@@ -497,7 +519,7 @@ class _DriverTripScreenState extends State<DriverTripScreen> {
                     if (r.comment != null) Text('ملاحظة: ${r.comment}'),
                     const SizedBox(height: 12),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      const Text('السعر · نقداً', style: TextStyle(color: AppColors.mute)),
+                      Text('السعر · ${paymentLabel(r.paymentMethod)}', style: const TextStyle(color: AppColors.mute)),
                       Money(r.finalPrice ?? r.offeredPrice),
                     ]),
                     const SizedBox(height: 12),

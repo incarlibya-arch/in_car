@@ -83,7 +83,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
             const SizedBox(height: 32),
             FilledButton(
               onPressed: _busy ? null : _send,
-              child: _busy ? const SizedBox.square(dimension: 22, child: CircularProgressIndicator()) : const Text('متابعة'),
+              child: _busy ? const SizedBox.square(dimension: 22, child: CircularProgressIndicator()) : const Text('كمّل'),
             ),
           ],
         ),
@@ -105,7 +105,7 @@ class _OtpScreenState extends State<OtpScreen> {
   bool _busy = false;
 
   Future<void> _verify() async {
-    if (_ctrl.text.trim().length < 6) return showMsg(context, 'الرمز من 6 أرقام');
+    if (_ctrl.text.trim().length < 6) return showMsg(context, 'الرمز 6 أرقام');
     setState(() => _busy = true);
     try {
       await Api.verifyOtp(widget.phone, _ctrl.text.trim());
@@ -123,7 +123,7 @@ class _OtpScreenState extends State<OtpScreen> {
       appBar: AppBar(title: const Text('رمز التحقق')),
       backgroundColor: Colors.white,
       body: ListView(padding: const EdgeInsets.all(24), children: [
-        Text('بعتنا رمز من 6 أرقام للرقم', style: const TextStyle(color: AppColors.mute)),
+        Text('بعتنالك رمز من 6 أرقام على الرقم', style: const TextStyle(color: AppColors.mute)),
         Text(widget.phone, textDirection: TextDirection.ltr, textAlign: TextAlign.right,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
         const SizedBox(height: 20),
@@ -140,7 +140,7 @@ class _OtpScreenState extends State<OtpScreen> {
         FilledButton(onPressed: _busy ? null : _verify, child: const Text('تأكيد')),
         TextButton(
           onPressed: _busy ? null : () => Api.sendOtp(widget.phone).then((_) => showMsg(context, 'تم إرسال رمز جديد')),
-          child: const Text('ما وصلنيش الرمز، أعد الإرسال'),
+          child: const Text('ما وصلنيش الرمز، عاود ابعته'),
         ),
       ]),
     );
@@ -163,6 +163,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   late String _role = widget.existing?.role ?? 'passenger';
   late final Set<Service> _services = {...?widget.existing?.services};
   late String _vehicle = widget.existing?.vehicleType ?? 'car';
+  late final Set<String> _pay = {'cash', ...?widget.existing?.paymentMethods};
+  final Map<String, TextEditingController> _payDetails = {
+    for (final k in ['bank_transfer', 'sadad', 'mobicash', 'other']) k: TextEditingController(),
+  };
   bool _busy = false;
 
   Future<void> _save() async {
@@ -180,7 +184,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         plate: _role == 'driver' ? _plate.text.trim() : null,
         services: _role == 'driver' ? (_services.isEmpty ? [Service.city] : _services.toList()) : const [Service.city],
         vehicleType: _role == 'driver' ? _vehicle : 'car',
+        paymentMethods: _role == 'driver' ? _pay.toList() : const ['cash'],
       );
+      if (_role == 'driver') {
+        await Api.savePaymentDetails({
+          for (final k in _pay)
+            if (k != 'cash') k: _payDetails[k]!.text,
+        });
+      }
       if (mounted) restartToGate(context);
     } catch (e) {
       if (mounted) showMsg(context, friendlyError(e));
@@ -216,7 +227,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   void initState() {
     super.initState();
     if (_services.isEmpty) _services.add(Service.city);
+    if (widget.existing?.isDriver == true) {
+      Api.myPaymentDetails().then((m) {
+        if (!mounted) return;
+        setState(() => m.forEach((k, v) => _payDetails[k]?.text = v));
+      }).catchError((_) {});
+    }
   }
+
+  static const _payHints = {
+    'bank_transfer': 'اسم المصرف ورقم الحساب',
+    'sadad': 'رقم الهاتف المسجل في سداد',
+    'mobicash': 'رقم الهاتف المسجل في موبي كاش',
+    'other': 'اسم الطريقة والرقم',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +251,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         Row(children: [
           _roleBtn('passenger', 'راكب', 'أطلب مشوار', Icons.person_outline),
           const SizedBox(width: 10),
-          _roleBtn('driver', 'سائق', 'استقبل الطلبات', Icons.directions_car_outlined),
+          _roleBtn('driver', 'سواق', 'استقبل الطلبات', Icons.directions_car_outlined),
         ]),
         const SizedBox(height: 20),
         TextField(controller: _name, decoration: const InputDecoration(labelText: 'الاسم')),
@@ -259,6 +283,32 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 onSelected: (v) => setState(() => v ? _services.add(s) : _services.remove(s)),
               ),
           ]),
+          const SizedBox(height: 16),
+          const Text('طرق الدفع اللي تقبلها', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text('الفلوس توصلك مباشرة من الراكب. بياناتك ما تظهرش للراكب إلا بعد ما تبدا الرحلة.',
+              style: TextStyle(fontSize: 12, color: AppColors.mute)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 8, runSpacing: 6, children: [
+            for (final e in paymentMethods.entries)
+              FilterChip(
+                label: Text(e.value),
+                selected: _pay.contains(e.key),
+                onSelected: e.key == 'cash' ? null : (v) => setState(() => v ? _pay.add(e.key) : _pay.remove(e.key)),
+              ),
+          ]),
+          for (final k in _payDetails.keys)
+            if (_pay.contains(k))
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: TextField(
+                  controller: _payDetails[k],
+                  maxLength: 200,
+                  decoration: InputDecoration(
+                    labelText: '${paymentLabel(k)}: ${_payHints[k]}',
+                    counterText: '',
+                  ),
+                ),
+              ),
           if (widget.existing != null && widget.existing!.isDriver) ...[
             const SizedBox(height: 16),
             OutlinedButton.icon(

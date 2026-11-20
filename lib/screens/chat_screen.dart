@@ -5,7 +5,7 @@ import '../services/api.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
-/// محادثة بين الراكب والسائق أثناء الرحلة
+/// محادثة بين الراكب والسواق أثناء الرحلة
 class ChatScreen extends StatefulWidget {
   final String rideId;
   final String otherName;
@@ -19,7 +19,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _ctrl = TextEditingController();
   bool _sending = false;
 
-  static const _quick = ['أنا عند نقطة الانطلاق', 'جاي في الطريق', 'نستناك', 'وين أنت بالضبط؟'];
+  static const _quick = ['أنا في المكان', 'جاي في الثنية', 'نراجي فيك', 'وينك بالضبط؟'];
 
   Future<void> _send([String? text]) async {
     final t = (text ?? _ctrl.text).trim();

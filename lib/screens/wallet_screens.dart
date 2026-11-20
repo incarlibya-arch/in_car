@@ -10,7 +10,7 @@ String _date(DateTime d) =>
     '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')} '
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
-/// محفظة السائق: الرصيد، طلب شحن، وسجل الحركات.
+/// محفظة السواق: الرصيد، طلب شحن، وسجل الحركات.
 class DriverWalletScreen extends StatefulWidget {
   const DriverWalletScreen({super.key});
   @override
@@ -202,13 +202,13 @@ class _TopupSheetState extends State<_TopupSheet> {
           decoration: const InputDecoration(labelText: 'رقم العملية أو الإيصال (اختياري)'),
         ),
         const SizedBox(height: 20),
-        FilledButton(onPressed: _busy ? null : _send, child: const Text('إرسال الطلب')),
+        FilledButton(onPressed: _busy ? null : _send, child: const Text('ابعت الطلب')),
       ]),
     );
   }
 }
 
-/// لوحة الإدارة: العمولة، طلبات الشحن، وتعديل رصيد سائق.
+/// لوحة الإدارة: العمولة، طلبات الشحن، وتعديل رصيد سواق.
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
   @override
@@ -288,7 +288,7 @@ class _AdminScreenState extends State<AdminScreen> {
       _found = p;
       _foundBalance = b;
     });
-    if (p == null) showMsg(context, 'ما لقيتش سائق بهذا الرقم');
+    if (p == null) showMsg(context, 'ما لقيتش سواق بهذا الرقم');
   }
 
   Future<void> _adjust() async {
@@ -404,7 +404,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        Text('${Api.cached(t.driverId)?.fullName ?? 'سائق'} · ${Api.cached(t.driverId)?.phone ?? ''}',
+                        Text('${Api.cached(t.driverId)?.fullName ?? 'سواق'} · ${Api.cached(t.driverId)?.phone ?? ''}',
                             style: const TextStyle(fontWeight: FontWeight.w700)),
                         Text('${t.amount.toStringAsFixed(0)} د.ل · ${t.methodLabel}'
                             '${t.reference != null ? ' · رقم العملية: ${t.reference}' : ''}'),
@@ -421,7 +421,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => _run(() => Api.decideTopup(t.id, false, note: 'لم يتم تأكيد الدفع'), 'تم الرفض'),
+                              onPressed: () => _run(() => Api.decideTopup(t.id, false, note: 'الدفع ما تأكدش'), 'تم الرفض'),
                               child: const Text('رفض', style: TextStyle(color: AppColors.danger)),
                             ),
                           ),
@@ -444,7 +444,7 @@ class _AdminScreenState extends State<AdminScreen> {
           TextField(
             controller: _min,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'أقل رصيد باش السائق يستقبل طلبات', suffixText: 'د.ل'),
+            decoration: const InputDecoration(labelText: 'أقل رصيد باش السواق يستقبل طلبات', suffixText: 'د.ل'),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -459,7 +459,7 @@ class _AdminScreenState extends State<AdminScreen> {
           TextField(
             controller: _info,
             maxLines: 3,
-            decoration: const InputDecoration(labelText: 'تعليمات الشحن اللي تظهر للسائق'),
+            decoration: const InputDecoration(labelText: 'تعليمات الشحن اللي تظهر للسواق'),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -476,14 +476,14 @@ class _AdminScreenState extends State<AdminScreen> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('توثيق السواقين إجباري'),
-            subtitle: const Text('السائق ما يقدرش يقدّم عروض لين توافق على وثائقه'),
+            subtitle: const Text('السواق ما يقدرش يقدّم عروض لين توافق على وثائقه'),
             value: _requireVerification,
             onChanged: (v) => setState(() => _requireVerification = v),
           ),
           const SizedBox(height: 12),
           FilledButton(onPressed: _saveSettings, child: const Text('حفظ')),
         ]),
-        _section('تعديل رصيد سائق', [
+        _section('تعديل رصيد سواق', [
           Row(children: [
             Expanded(
               child: Directionality(
@@ -496,7 +496,7 @@ class _AdminScreenState extends State<AdminScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            OutlinedButton(onPressed: _findDriver, child: const Text('بحث')),
+            OutlinedButton(onPressed: _findDriver, child: const Text('دوّر')),
           ]),
           if (_found != null) ...[
             const SizedBox(height: 10),
@@ -519,7 +519,7 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 }
 
-/// مراجعة وثائق سائق
+/// مراجعة وثائق سواق
 class DriverReviewScreen extends StatefulWidget {
   final Profile driver;
   const DriverReviewScreen({super.key, required this.driver});
@@ -564,7 +564,7 @@ class _DriverReviewScreenState extends State<DriverReviewScreen> {
           builder: (context, snap) {
             if (snap.hasError) return Text(friendlyError(snap.error!));
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            if (snap.data!.isEmpty) return const Text('السائق ما رفعش وثائق لين توا', style: TextStyle(color: AppColors.danger));
+            if (snap.data!.isEmpty) return const Text('السواق ما رفعش وثائق لين توا', style: TextStyle(color: AppColors.danger));
             final missing = docTypes.keys.where((k) => !snap.data!.any((e) => e.$1.docType == k));
             return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               if (missing.isNotEmpty)
@@ -576,14 +576,14 @@ class _DriverReviewScreenState extends State<DriverReviewScreen> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(url, fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text('تعذر عرض الصورة')),
+                      errorBuilder: (_, __, ___) => const Text('الصورة ما ظهرتش')),
                 ),
               ],
             ]);
           },
         ),
         const SizedBox(height: 16),
-        TextField(controller: _note, decoration: const InputDecoration(labelText: 'ملاحظة للسائق (إجبارية عند الرفض)')),
+        TextField(controller: _note, decoration: const InputDecoration(labelText: 'ملاحظة للسواق (إجبارية عند الرفض)')),
         const SizedBox(height: 12),
         Row(children: [
           Expanded(child: FilledButton(onPressed: _busy ? null : () => _decide('approved'), child: const Text('توثيق'))),

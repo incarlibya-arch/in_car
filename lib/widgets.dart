@@ -5,6 +5,14 @@ import 'package:latlong2/latlong.dart';
 import 'config.dart';
 import 'theme.dart';
 
+const _k = 0.72;
+const _lightMap = ColorFilter.matrix(<double>[
+  0.2126 * _k, 0.7152 * _k, 0.0722 * _k, 0, 68,
+  0.2126 * _k, 0.7152 * _k, 0.0722 * _k, 0, 70,
+  0.2126 * _k, 0.7152 * _k, 0.0722 * _k, 0, 74,
+  0, 0, 0, 1, 0,
+]);
+
 /// الخريطة المشتركة بين كل الشاشات.
 class AppMap extends StatelessWidget {
   final MapController? controller;
@@ -36,7 +44,14 @@ class AppMap extends StatelessWidget {
         onTap: onTap == null ? null : (_, p) => onTap!(p),
       ),
       children: [
-        TileLayer(urlTemplate: AppConfig.tileUrl, userAgentPackageName: AppConfig.tileUserAgent),
+        TileLayer(
+          urlTemplate: AppConfig.tileUrl,
+          userAgentPackageName: AppConfig.tileUserAgent,
+          panBuffer: 0,
+          keepBuffer: 1,
+          // خريطة فاتحة رمادية بسيطة (بدون ألوان) — أخف على العين وأوضح للمسار
+          tileBuilder: (context, tile, _) => ColorFiltered(colorFilter: _lightMap, child: tile),
+        ),
         if (route.length > 1)
           PolylineLayer(polylines: [Polyline(points: route, strokeWidth: 5, color: AppColors.ink)]),
         MarkerLayer(markers: [
