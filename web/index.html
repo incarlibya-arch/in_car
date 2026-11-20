@@ -23,9 +23,30 @@
   </style>
 </head>
 <body>
-  <div id="splash"><b>in car</b><div id="bar"><i></i></div><span>قاعد يحمّل… أول مرة ممكن ياخذ دقيقة</span></div>
+  <div id="splash"><b>in car</b><div id="bar"><i></i></div><span id="msg">قاعد يحمّل… أول مرة ممكن ياخذ دقيقة</span>
+    <pre id="err" style="display:none;max-width:90vw;white-space:pre-wrap;font-size:12px;color:#FFB4A8;direction:ltr;text-align:left"></pre>
+    <button id="again" onclick="location.reload()" style="display:none;padding:12px 22px;border:0;border-radius:12px;background:#F2A516;color:#0F1B2D;font-size:16px;font-weight:700">عاود حمّل</button>
+  </div>
   <script>
+    var started = false;
+    function showProblem(text) {
+      if (started) return;
+      document.getElementById('msg').textContent = 'التحميل وقف. صوّر الشاشة هذي وابعتها للدعم:';
+      var e = document.getElementById('err'); e.style.display = 'block';
+      e.textContent = (e.textContent ? e.textContent + '\n' : '') + text;
+      document.getElementById('again').style.display = 'inline-block';
+    }
+    window.addEventListener('error', function (ev) {
+      showProblem((ev.message || 'error') + (ev.filename ? ' @ ' + ev.filename.split('/').pop() + ':' + ev.lineno : ''));
+    }, true);
+    window.addEventListener('unhandledrejection', function (ev) {
+      showProblem('promise: ' + (ev.reason && (ev.reason.message || ev.reason)));
+    });
+    setTimeout(function () {
+      if (!started) showProblem('timeout 90s · ' + navigator.userAgent + ' · wasm=' + (typeof WebAssembly));
+    }, 90000);
     window.addEventListener('flutter-first-frame', function () {
+      started = true;
       var s = document.getElementById('splash'); if (s) s.remove();
     });
   </script>
